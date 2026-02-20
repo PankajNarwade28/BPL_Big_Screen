@@ -144,8 +144,6 @@ function App() {
     return '#EF4444'; 
   };
 
-  const formatStat = (val) => val !== undefined && val !== null ? val : '-';
-
   return (
     <div className="min-h-screen h-screen overflow-hidden flex flex-col bg-slate-50 text-slate-900">
       {isConnecting && <LoadingAnimation message="Establishing Connection..." />}
@@ -261,28 +259,28 @@ function App() {
       )}
 
       {showTeamSummary && (
-        <div className="fixed inset-0 bg-slate-50 z-[999] flex flex-col p-8 animate-in fade-in duration-500">
-          <div className="flex justify-between items-center mb-10 border-b border-slate-200 pb-6">
-            <h1 className="text-5xl font-black tracking-tighter text-slate-900">SQUAD UPDATES</h1>
-            <div className="bg-white border border-slate-200 px-6 py-2 rounded-2xl text-slate-500 font-bold shadow-sm">Reviewing Teams</div>
+        <div className="fixed inset-0 bg-slate-50 z-[999] flex flex-col p-3 sm:p-4 md:p-6 lg:p-8 animate-in fade-in duration-500">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 md:mb-10 border-b border-slate-200 pb-3 sm:pb-4 md:pb-6 gap-2 sm:gap-0">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black tracking-tighter text-slate-900">SQUAD UPDATES</h1>
+            <div className="bg-white border border-slate-200 px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl text-xs sm:text-sm md:text-base text-slate-500 font-bold shadow-sm">Reviewing Teams</div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto no-scrollbar">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 overflow-y-auto no-scrollbar">
             {Array.isArray(teams) && teams.map((team) => (
-              <div key={team._id} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-md">
-                <div className="flex items-center gap-4 mb-6">
-                  <img src={team.logo ? `${SOCKET_URL}${team.logo.replace(/^\/+/, '').startsWith('uploads') ? team.logo.replace(/^\/+/, '') : 'uploads/' + team.logo.replace(/^\/+/, '')}` : DEFAULT_TEAM_LOGO} className="w-16 h-16 rounded-full border border-slate-100 shadow-sm" alt={team.teamName} onError={(e) => e.target.src = DEFAULT_TEAM_LOGO} />
-                  <div>
-                    <h2 className="text-2xl font-black text-slate-800">{team.teamName}</h2>
-                    <div className="text-blue-600 font-bold">₹{team.purseBudget || 0} Purse</div>
+              <div key={team._id} className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 border border-slate-200 shadow-md">
+                <div className="flex items-center gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-5 md:mb-6">
+                  <img src={team.logo ? `${SOCKET_URL}${team.logo.replace(/^\/+/, '').startsWith('uploads') ? team.logo.replace(/^\/+/, '') : 'uploads/' + team.logo.replace(/^\/+/, '')}` : DEFAULT_TEAM_LOGO} className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 rounded-full border border-slate-100 shadow-sm flex-shrink-0" alt={team.teamName} onError={(e) => e.target.src = DEFAULT_TEAM_LOGO} />
+                  <div className="min-w-0">
+                    <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-black text-slate-800 truncate">{team.teamName}</h2>
+                    <div className="text-xs sm:text-sm md:text-base text-blue-600 font-bold">₹{team.purseBudget || 0} Purse</div>
                   </div>
                 </div>
-                <div className="space-y-2 mb-6 h-[250px] overflow-y-auto pr-2 custom-scrollbar">
-                  {Array(11).fill(null).map((_, i) => {
+                <div className="space-y-1.5 sm:space-y-2 mb-4 sm:mb-5 md:mb-6 h-[200px] sm:h-[220px] md:h-[250px] overflow-y-auto pr-1 sm:pr-2 custom-scrollbar">
+                  {new Array(11).fill(null).map((_, i) => {
                     const p = team.players?.[i];
                     return (
-                      <div key={i} className={`flex items-center justify-between p-3 rounded-xl ${p ? 'bg-slate-50 border border-slate-100' : 'bg-slate-50 opacity-20 border border-dashed border-slate-300'}`}>
-                        <span className="font-bold text-slate-700">{p ? p.name : `---`}</span>
-                        {p && <span className="text-blue-600 font-black">₹{p.soldPrice}</span>}
+                      <div key={i} className={`flex items-center justify-between p-2 sm:p-2.5 md:p-3 rounded-lg sm:rounded-xl ${p ? 'bg-slate-50 border border-slate-100' : 'bg-slate-50 opacity-20 border border-dashed border-slate-300'}`}>
+                        <span className="text-xs sm:text-sm md:text-base font-bold text-slate-700 truncate pr-2">{p ? p.name : `---`}</span>
+                        {p && <span className="text-xs sm:text-sm md:text-base text-blue-600 font-black whitespace-nowrap">₹{p.soldPrice}</span>}
                       </div>
                     );
                   })}
