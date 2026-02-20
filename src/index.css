@@ -1,0 +1,145 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Prevent scrollbars */
+@layer base {
+  html, body {
+    @apply overflow-hidden;
+    @apply h-screen;
+    @apply w-screen;
+  }
+  
+  #root {
+    @apply h-screen;
+    @apply w-screen;
+    @apply overflow-hidden;
+  }
+}
+
+/* Custom utility for hiding scrollbar */
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Custom animations for the big screen */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bidPopUp {
+  from {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 
+                0 0 150px rgba(102, 126, 234, 0.6),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+  50% {
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 
+                0 0 200px rgba(102, 126, 234, 0.9),
+                0 0 250px rgba(255, 215, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+}
+
+@keyframes logoGlow {
+  0%, 100% {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5),
+                0 0 40px rgba(102, 126, 234, 0.4);
+  }
+  50% {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5),
+                0 0 60px rgba(102, 126, 234, 0.7);
+  }
+}
+
+@keyframes amountPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes progressBar {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
