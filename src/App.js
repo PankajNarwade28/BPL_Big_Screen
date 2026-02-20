@@ -464,7 +464,7 @@ export default function App() {
                             ${p
                               ? 'bg-blue-50 border border-blue-100'
                               : 'bg-slate-50 border border-dashed border-slate-200 opacity-40'}`}>
-                          <span className={`font-semibold truncate ${p ? 'text-slate-700' : 'text-slate-400'}`}>
+                          <span className={`font-semibold truncate ${p ? 'text-black-700' : 'text-slate-400'}`}>
                             {p ? p.name : `Slot ${i + 1}`}
                           </span>
                           {p && (
