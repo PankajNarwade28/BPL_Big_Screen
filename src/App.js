@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import LoadingAnimation from './LoadingAnimation';
 import TeamPurseBar from './TeamPurseBar';
@@ -9,15 +9,13 @@ const PLACEHOLDER_IMAGE = `${SOCKET_URL}uploads/defaultPlayer.png`;
 const DEFAULT_TEAM_LOGO = `${SOCKET_URL}uploads/defaultTeam.png`;
 
 function App() {
-  const [socket, setSocket] = useState(null);
-  const [auctionState, setAuctionState] = useState(null);
   const [currentPlayer, setCurrentPlayer] = useState(null);
   const [timerValue, setTimerValue] = useState(20);
   const [currentBid, setCurrentBid] = useState({ amount: 5, teamName: 'No Bids Yet', team: null });
   const [recentlySold, setRecentlySold] = useState([]);
   const [showSoldAnimation, setShowSoldAnimation] = useState(false);
   const [soldInfo, setSoldInfo] = useState(null);
-  const [soldAnimationTimeout, setSoldAnimationTimeout] = useState(null);
+  const soldAnimationTimeout = useRef(null);
   const [isConnecting, setIsConnecting] = useState(true);
   const [showBidAnimation, setShowBidAnimation] = useState(false);
   const [bidAnimationData, setBidAnimationData] = useState(null);
@@ -49,7 +47,6 @@ function App() {
       reconnectionDelay: 1000,
       reconnectionAttempts: 10
     });
-    setSocket(newSocket);
 
     newSocket.on('connect', () => {
       setTimeout(() => setIsConnecting(false), 1000);
@@ -58,7 +55,6 @@ function App() {
 
     newSocket.on('auction:state', (data) => {
       if (data.state) {
-        setAuctionState(data.state);
         if (data.state.currentPlayer) {
           setCurrentPlayer(data.state.currentPlayer);
           setCurrentBid({
@@ -73,7 +69,7 @@ function App() {
     });
 
     newSocket.on('auction:started', (data) => {
-      if (soldAnimationTimeout) clearTimeout(soldAnimationTimeout);
+      if (soldAnimationTimeout.current) clearTimeout(soldAnimationTimeout.current);
       setShowSoldAnimation(false);
       setCurrentPlayer(data.player);
       setCurrentBid({ amount: data.basePrice, teamName: 'Base Price', team: null });
@@ -117,20 +113,20 @@ function App() {
     });
 
     newSocket.on('player:sold', (data) => {
-      if (soldAnimationTimeout) clearTimeout(soldAnimationTimeout);
+      if (soldAnimationTimeout.current) clearTimeout(soldAnimationTimeout.current);
       setSoldInfo(data);
       setShowSoldAnimation(true);
       newSocket.emit('bigscreen:summaryStarting');
       const timeout = setTimeout(() => {
         setShowSoldAnimation(false);
-        setSoldAnimationTimeout(null);
+        soldAnimationTimeout.current = null;
         setShowTeamSummary(true);
         setTimeout(() => {
           setShowTeamSummary(false);
           newSocket.emit('bigscreen:summaryComplete');
         }, 10000);
       }, 5000);
-      setSoldAnimationTimeout(timeout);
+      soldAnimationTimeout.current = timeout;
       if (data.team) {
         setRecentlySold(prev => [
           { player: data.player, team: data.team, amount: data.amount, soldAt: new Date() },
@@ -139,7 +135,7 @@ function App() {
       }
     });
 
-    return () => { if (soldAnimationTimeout) clearTimeout(soldAnimationTimeout); newSocket.close(); };
+    return () => { if (soldAnimationTimeout.current) clearTimeout(soldAnimationTimeout.current); newSocket.close(); };
   }, []);
 
   const getTimerColor = () => {
