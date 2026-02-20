@@ -151,116 +151,101 @@ function App() {
       {isConnecting && <LoadingAnimation message="Establishing Connection..." />}
       
       {showSoldAnimation && soldInfo ? (
-        <div className="fixed inset-0 w-full h-full bg-white/95 flex items-center justify-center z-[1000] p-4 animate-in fade-in zoom-in duration-300">
-          <div className="text-center scale-110">
-            <div className="text-8xl mb-4 drop-shadow-xl animate-bounce">{soldInfo.team ? '🏆' : '⚪'}</div>
-            <h1 className={`text-7xl md:text-9xl font-black mb-8 tracking-tighter uppercase ${soldInfo.team ? 'text-blue-600' : 'text-slate-400'}`}>
+        <div className="fixed inset-0 w-full h-full bg-white/95 flex items-center justify-center z-[1000] p-4 sm:p-6 md:p-8 animate-in fade-in zoom-in duration-300">
+          <div className="text-center w-full max-w-2xl">
+            <div className="text-5xl sm:text-6xl md:text-8xl mb-3 sm:mb-4 drop-shadow-xl animate-bounce">{soldInfo.team ? '🏆' : '⚪'}</div>
+            <h1 className={`text-4xl sm:text-6xl md:text-7xl lg:text-9xl font-black mb-4 sm:mb-6 md:mb-8 tracking-tighter uppercase ${soldInfo.team ? 'text-blue-600' : 'text-slate-400'}`}>
               {soldInfo.team ? 'SOLD!' : 'UNSOLD'}
             </h1>
-            <div className="bg-white rounded-3xl p-10 border border-slate-200 shadow-2xl">
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-10 border border-slate-200 shadow-2xl">
               <img 
                 src={soldInfo.player.photo ? (soldInfo.player.photo.startsWith('http') ? soldInfo.player.photo : `${SOCKET_URL}${soldInfo.player.photo.replace(/^\/+/, '').startsWith('uploads') ? soldInfo.player.photo.replace(/^\/+/, '') : 'uploads/' + soldInfo.player.photo.replace(/^\/+/, '')}`) : PLACEHOLDER_IMAGE} 
-                className="w-56 h-56 rounded-full object-cover border-8 border-slate-50 mx-auto mb-6 shadow-xl"
+                className="w-32 h-32 sm:w-40 sm:h-40 md:w-56 md:h-56 rounded-full object-cover border-4 sm:border-6 md:border-8 border-slate-50 mx-auto mb-4 sm:mb-6 shadow-xl"
                 onError={(e) => e.target.src = PLACEHOLDER_IMAGE}
                 alt={soldInfo.player.name}
               />
-              <h2 className="text-5xl font-bold mb-4 text-slate-800">{soldInfo.player.name}</h2>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4 text-slate-800 px-2">{soldInfo.player.name}</h2>
               {soldInfo.team && (
-                <div className="flex items-center justify-center gap-4 mb-6 bg-slate-100 p-4 rounded-2xl">
-                  <img src={soldInfo.team.logo ? `${SOCKET_URL}${soldInfo.team.logo.replace(/^\/+/, '').startsWith('uploads') ? soldInfo.team.logo.replace(/^\/+/, '') : 'uploads/' + soldInfo.team.logo.replace(/^\/+/, '')}` : DEFAULT_TEAM_LOGO} className="w-16 h-16 rounded-full" alt={soldInfo.team.teamName} onError={(e) => e.target.src = DEFAULT_TEAM_LOGO} />
-                  <h3 className="text-4xl font-black text-blue-700">{soldInfo.team.teamName}</h3>
+                <div className="flex items-center justify-center gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6 bg-slate-100 p-3 sm:p-4 rounded-xl sm:rounded-2xl flex-wrap">
+                  <img src={soldInfo.team.logo ? `${SOCKET_URL}${soldInfo.team.logo.replace(/^\/+/, '').startsWith('uploads') ? soldInfo.team.logo.replace(/^\/+/, '') : 'uploads/' + soldInfo.team.logo.replace(/^\/+/, '')}` : DEFAULT_TEAM_LOGO} className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 rounded-full" alt={soldInfo.team.teamName} onError={(e) => e.target.src = DEFAULT_TEAM_LOGO} />
+                  <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-blue-700">{soldInfo.team.teamName}</h3>
                 </div>
               )}
-              <div className="text-6xl font-black text-white bg-blue-600 px-12 py-4 rounded-2xl shadow-lg">
-                ₹{soldInfo.amount} <span className="text-2xl font-normal opacity-80">Points</span>
+              <div className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white bg-blue-600 px-4 sm:px-8 md:px-12 py-3 sm:py-4 rounded-xl sm:rounded-2xl shadow-lg">
+                ₹{soldInfo.amount} <span className="text-base sm:text-xl md:text-2xl font-normal opacity-80">Points</span>
               </div>
             </div>
           </div>
         </div>
       ) : currentPlayer ? (
         <div className="flex flex-col h-full bg-slate-50">
-          <div className="text-center py-6 bg-white border-b border-slate-200 shadow-sm">
-            <h1 className="text-4xl font-black tracking-[0.1em] text-slate-800">
+          <div className="text-center py-3 sm:py-4 md:py-6 bg-white border-b border-slate-200 shadow-sm">
+            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black tracking-[0.1em] text-slate-800 px-2">
                CRICKET AUCTION <span className="text-blue-600">LIVE</span>
             </h1>
           </div>
 
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6 p-6 overflow-hidden">
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-3 sm:gap-4 md:gap-6 p-3 sm:p-4 md:p-6 overflow-y-auto lg:overflow-hidden">
             <div className="flex flex-col">
-              <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-xl flex flex-col items-center">
+              <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 border border-slate-200 shadow-xl flex flex-col items-center">
                 <img 
                   src={currentPlayer.photo ? (currentPlayer.photo.startsWith('http') ? currentPlayer.photo : `${SOCKET_URL}${currentPlayer.photo.replace(/^\/+/, '').startsWith('uploads') ? currentPlayer.photo.replace(/^\/+/, '') : 'uploads/' + currentPlayer.photo.replace(/^\/+/, '')}`) : PLACEHOLDER_IMAGE} 
-                  className="w-56 h-56 rounded-3xl object-cover border-4 border-slate-100 shadow-lg mb-6 hover:scale-105 transition-transform"
+                  className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 lg:w-56 lg:h-56 rounded-2xl sm:rounded-3xl object-cover border-2 sm:border-4 border-slate-100 shadow-lg mb-3 sm:mb-4 md:mb-6 hover:scale-105 transition-transform"
                   onError={(e) => e.target.src = PLACEHOLDER_IMAGE}
                   alt={currentPlayer.name}
                 />
-                <h2 className="text-5xl font-black mb-2 text-slate-900">{currentPlayer.name}</h2>
-                <div className="bg-slate-100 text-slate-600 px-6 py-1 rounded-full text-lg font-bold border border-slate-200 mb-8 uppercase tracking-widest">
+                <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black mb-2 text-slate-900 text-center px-2">{currentPlayer.name}</h2>
+                <div className="bg-slate-100 text-slate-600 px-3 sm:px-4 md:px-6 py-1 rounded-full text-xs sm:text-sm md:text-base lg:text-lg font-bold border border-slate-200 uppercase tracking-widest">
                   {currentPlayer.category}
-                </div>
-                
-                <div className="grid grid-cols-5 gap-4 w-full">
-                  {[
-                    { label: 'Matches', val: currentPlayer.stats?.matches },
-                    { label: 'Runs', val: currentPlayer.stats?.runs },
-                    { label: 'Wickets', val: currentPlayer.stats?.wickets },
-                    { label: 'Avg', val: currentPlayer.stats?.average },
-                    { label: 'S/R', val: currentPlayer.stats?.strikeRate }
-                  ].map((s, i) => (
-                    <div key={i} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center">
-                      <div className="text-xs font-bold text-slate-400 uppercase mb-1">{s.label}</div>
-                      <div className="text-2xl font-black text-slate-800">{formatStat(s.val)}</div>
-                    </div>
-                  ))}
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-col gap-6">
-              <div className="flex-1 bg-white rounded-3xl p-8 border border-slate-200 shadow-xl flex flex-col items-center justify-center relative overflow-hidden">
+            <div className="flex flex-col gap-3 sm:gap-4 md:gap-6">
+              <div className="flex-1 bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 border border-slate-200 shadow-xl flex flex-col items-center justify-center relative overflow-hidden">
                 <div 
-                  className="w-52 h-52 rounded-full flex items-center justify-center border-8 border-white shadow-2xl transition-all duration-500"
+                  className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 lg:w-52 lg:h-52 rounded-full flex items-center justify-center border-4 sm:border-6 md:border-8 border-white shadow-2xl transition-all duration-500"
                   style={{ backgroundColor: getTimerColor(), animation: timerValue <= 5 ? 'pulse 1s infinite' : 'none' }}
                 >
-                  <span className="text-8xl font-black text-white drop-shadow-md">{timerValue}</span>
+                  <span className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-black text-white drop-shadow-md">{timerValue}</span>
                 </div>
 
-                <div className="mt-10 w-full bg-slate-50 rounded-3xl p-8 border border-slate-200 text-center shadow-inner">
-                  <div className="text-sm font-black text-slate-400 uppercase tracking-widest mb-2">Current Bid</div>
-                  <div className="text-7xl font-black text-blue-600 mb-4 tracking-tighter">₹{currentBid.amount}</div>
-                  <div className="flex items-center justify-center gap-4 bg-white py-3 px-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="mt-4 sm:mt-6 md:mt-10 w-full bg-slate-50 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 border border-slate-200 text-center shadow-inner">
+                  <div className="text-[10px] sm:text-xs md:text-sm font-black text-slate-400 uppercase tracking-widest mb-2">Current Bid</div>
+                  <div className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-black text-blue-600 mb-3 sm:mb-4 tracking-tighter">₹{currentBid.amount}</div>
+                  <div className="flex items-center justify-center gap-2 sm:gap-3 md:gap-4 bg-white py-2 sm:py-3 px-3 sm:px-4 md:px-6 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm flex-wrap">
                     {currentBid.team && (
-                      <img src={currentBid.team.logo ? `${SOCKET_URL}${currentBid.team.logo.replace(/^\/+/, '').startsWith('uploads') ? currentBid.team.logo.replace(/^\/+/, '') : 'uploads/' + currentBid.team.logo.replace(/^\/+/, '')}` : DEFAULT_TEAM_LOGO} className="w-12 h-12 rounded-full" alt={currentBid.team.teamName} onError={(e) => e.target.src = DEFAULT_TEAM_LOGO} />
+                      <img src={currentBid.team.logo ? `${SOCKET_URL}${currentBid.team.logo.replace(/^\/+/, '').startsWith('uploads') ? currentBid.team.logo.replace(/^\/+/, '') : 'uploads/' + currentBid.team.logo.replace(/^\/+/, '')}` : DEFAULT_TEAM_LOGO} className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full" alt={currentBid.team.teamName} onError={(e) => e.target.src = DEFAULT_TEAM_LOGO} />
                     )}
-                    <div className="text-2xl font-bold text-slate-700 truncate">{currentBid.teamName}</div>
+                    <div className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-slate-700 truncate">{currentBid.teamName}</div>
                   </div>
                 </div>
 
-                <div className="mt-6 text-xl font-bold text-slate-400">
-                  BASE PRICE: <span className="text-slate-900 ml-2">₹{currentPlayer.basePrice}</span>
+                <div className="mt-3 sm:mt-4 md:mt-6 text-xs sm:text-sm md:text-base lg:text-xl font-bold text-slate-400">
+                  BASE PRICE: <span className="text-slate-900 ml-1 sm:ml-2">₹{currentPlayer.basePrice}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-4 border-t border-slate-200">
-            <div className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 ml-2">Sold Gallery</div>
-            <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
+          <div className="bg-white p-2 sm:p-3 md:p-4 border-t border-slate-200">
+            <div className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 sm:mb-3 ml-1 sm:ml-2">Sold Gallery</div>
+            <div className="flex gap-2 sm:gap-3 md:gap-4 overflow-x-auto pb-2 no-scrollbar">
               {recentlySold.length > 0 ? recentlySold.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-3 bg-slate-50 py-2 px-5 rounded-xl border border-slate-200 flex-shrink-0">
-                  <span className="font-bold text-slate-700">{item.player?.name}</span>
-                  <div className="h-4 w-[1px] bg-slate-300"></div>
-                  <span className="text-blue-600 font-black">₹{item.amount}</span>
-                  <span className="text-xs font-bold bg-slate-200 text-slate-600 px-2 py-1 rounded-md">{item.team?.teamName}</span>
+                <div key={idx} className="flex items-center gap-2 sm:gap-3 bg-slate-50 py-1.5 sm:py-2 px-3 sm:px-4 md:px-5 rounded-lg sm:rounded-xl border border-slate-200 flex-shrink-0">
+                  <span className="text-xs sm:text-sm md:text-base font-bold text-slate-700 whitespace-nowrap">{item.player?.name}</span>
+                  <div className="h-3 sm:h-4 w-[1px] bg-slate-300"></div>
+                  <span className="text-xs sm:text-sm md:text-base text-blue-600 font-black whitespace-nowrap">₹{item.amount}</span>
+                  <span className="text-[10px] sm:text-xs font-bold bg-slate-200 text-slate-600 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md whitespace-nowrap">{item.team?.teamName}</span>
                 </div>
-              )) : <div className="text-slate-300 font-bold ml-2 italic">Awaiting first bid...</div>}
+              )) : <div className="text-xs sm:text-sm text-slate-300 font-bold ml-1 sm:ml-2 italic">Awaiting first bid...</div>}
             </div>
           </div>
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center h-full bg-slate-50">
-          <div className="text-9xl animate-pulse mb-8 opacity-10">🏏</div>
-          <h1 className="text-4xl font-black tracking-widest text-slate-300 uppercase">Auction Lobby</h1>
+        <div className="flex flex-col items-center justify-center h-full bg-slate-50 px-4">
+          <div className="text-5xl sm:text-6xl md:text-7xl lg:text-9xl animate-pulse mb-4 sm:mb-6 md:mb-8 opacity-10">🏏</div>
+          <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black tracking-widest text-slate-300 uppercase text-center">Auction Lobby</h1>
         </div>
       )}
 
