@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import LoadingAnimation from './LoadingAnimation';
 import TeamPurseBar from './TeamPurseBar';
-import { getPlayerImage, getTeamLogo } from './utils/cloudinaryUtils';
 
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000/';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -244,7 +243,7 @@ export default function App() {
 
             <div className="w-full bg-white rounded-3xl border border-slate-200 shadow-2xl p-5 sm:p-8">
               <img
-                src={getOptimizedPlayerPhoto(soldInfo.player.photo, 'card')}
+                src={getOptimizedPlayerPhoto(soldInfo.player.photo)}
                 onError={e => e.target.src = PLACEHOLDER_IMAGE}
                 alt={soldInfo.player.name}
                 className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl object-cover border-2 border-slate-100 shadow-md mx-auto mb-4"
@@ -256,7 +255,7 @@ export default function App() {
               {soldInfo.team && (
                 <div className="flex items-center justify-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 mb-4">
                   <img
-                    src={getOptimizedTeamLogo(soldInfo.team.logo, 'small')}
+                    src={getOptimizedTeamLogo(soldInfo.team.logo)}
                     onError={e => e.target.src = DEFAULT_TEAM_LOGO}
                     alt={soldInfo.team.teamName}
                     className="w-10 h-10 rounded-full object-cover border border-slate-200 flex-shrink-0"
@@ -310,7 +309,7 @@ export default function App() {
 
               {/* Photo */}
               <img
-                src={getOptimizedPlayerPhoto(currentPlayer.photo, 'fullscreen')}
+                src={getOptimizedPlayerPhoto(currentPlayer.photo)}
                 onError={e => e.target.src = PLACEHOLDER_IMAGE}
                 alt={currentPlayer.name}
                 className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 lg:w-44 lg:h-44 rounded-xl sm:rounded-2xl object-cover
@@ -384,7 +383,7 @@ export default function App() {
                                 rounded-full pl-1 sm:pl-1.5 pr-2 sm:pr-4 py-0.5 sm:py-1 shadow-sm max-w-full overflow-hidden">
                   {currentBid.team && (
                     <img
-                      src={getOptimizedTeamLogo(currentBid.team.logo, 'small')}
+                      src={getOptimizedTeamLogo(currentBid.team.logo)}
                       onError={e => e.target.src = DEFAULT_TEAM_LOGO}
                       alt={currentBid.team.teamName}
                       className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 rounded-full object-cover border border-slate-200 flex-shrink-0"
@@ -462,7 +461,7 @@ export default function App() {
                           rounded-2xl shadow-2xl px-5 py-4 flex items-center gap-4">
             <img
               src={bidAnimationData.teamLogo
-                ? getOptimizedTeamLogo(bidAnimationData.teamLogo, 'medium')
+                ? getOptimizedTeamLogo(bidAnimationData.teamLogo)
                 : DEFAULT_TEAM_LOGO}
               onError={e => e.target.src = DEFAULT_TEAM_LOGO}
               alt={bidAnimationData.teamName}
@@ -510,7 +509,7 @@ export default function App() {
                   {/* Team header */}
                   <div className="flex items-center gap-3 p-4 border-b border-slate-100">
                     <img
-                      src={getOptimizedTeamLogo(team.logo, 'small')}
+                      src={getOptimizedTeamLogo(team.logo)}
                       onError={e => e.target.src = DEFAULT_TEAM_LOGO}
                       alt={team.teamName}
                       className="w-11 h-11 rounded-full object-cover border border-slate-200 flex-shrink-0"
