@@ -126,6 +126,8 @@ const LoadingAnimation = ({ message = "Loading..." }) => {
               opacity: 0.8
             }}>
               SYNCING AUCTION DATA
+
+            <h2 style={{ fontSize: '30px', color: '#94a3b8', marginTop: '8px' }}>Developed By Pankaj Narwade Patil</h2>
             </p>
           </div>
         </div>

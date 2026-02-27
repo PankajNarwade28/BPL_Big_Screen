@@ -2,17 +2,62 @@ import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import LoadingAnimation from './LoadingAnimation';
 import TeamPurseBar from './TeamPurseBar';
+import { getPlayerImage, getTeamLogo } from './utils/cloudinaryUtils';
 
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000/';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const PLACEHOLDER_IMAGE = `${SOCKET_URL}uploads/defaultPlayer.png`;
-const DEFAULT_TEAM_LOGO  = `${SOCKET_URL}uploads/defaultTeam.png`;
+
+// Ensure SOCKET_URL ends with a slash
+const normalizeUrl = (url) => url.endsWith('/') ? url : url + '/';
+const BASE_URL = normalizeUrl(SOCKET_URL);
+
+const PLACEHOLDER_IMAGE = 'https://res.cloudinary.com/dz8q0fb8m/image/upload/v1772197979/defaultPlayer_kad3xb.png';
+const DEFAULT_TEAM_LOGO = 'https://res.cloudinary.com/dz8q0fb8m/image/upload/v1772197980/defaultTeam_x7thxe.png';
 
 const buildImgUrl = (path, base, placeholder) => {
-  if (!path) return placeholder;
+  if (!path || path.trim() === '') return placeholder;
+  
+  // If it's a Cloudinary URL, return as-is (we'll optimize at usage points)
   if (path.startsWith('http')) return path;
-  const clean = path.replace(/^\/+/, '');
-  return `${base}${clean.startsWith('uploads') ? clean : 'uploads/' + clean}`;
+  
+  // Normalize base URL to ensure it has protocol and trailing slash
+  let normalizedBase = base;
+  if (!normalizedBase.startsWith('http')) {
+    normalizedBase = 'http://localhost:5000/';
+  }
+  normalizedBase = normalizedBase.endsWith('/') ? normalizedBase : normalizedBase + '/';
+  
+  // Clean the path - remove leading slashes
+  const cleanPath = path.replace(/^\/+/, '');
+  
+  // Construct the full URL
+  return `${normalizedBase}${cleanPath}`;
+};
+
+// Helper function to get optimized player photo
+const getOptimizedPlayerPhoto = (photoUrl) => {
+  if (!photoUrl) return PLACEHOLDER_IMAGE;
+  
+  // If it's already a full URL (Cloudinary or other), use it as-is
+  if (photoUrl.startsWith('http')) {
+    return photoUrl;
+  }
+  
+  // For local uploads, use buildImgUrl
+  return buildImgUrl(photoUrl, BASE_URL, PLACEHOLDER_IMAGE);
+};
+
+// Helper function to get optimized team logo
+const getOptimizedTeamLogo = (logoUrl) => {
+  if (!logoUrl) return DEFAULT_TEAM_LOGO;
+  
+  // If it's already a full URL (Cloudinary or other), use it as-is
+  if (logoUrl.startsWith('http')) {
+    return logoUrl;
+  }
+  
+  // For local uploads, use buildImgUrl
+  return buildImgUrl(logoUrl, BASE_URL, DEFAULT_TEAM_LOGO);
 };
 
 // Only return stats that have a real, non-zero value
@@ -118,6 +163,16 @@ export default function App() {
     socket.on('timer:reset',  (d) => setTimerValue(d.value));
     socket.on('teams:status', (d) => { if (d.teams && Array.isArray(d.teams)) setTeams(d.teams); });
 
+    socket.on('auction:reset', (data) => {
+      // Reset auction state
+      setCurrentPlayer(null);
+      setTimerValue(0);
+      setShowSoldAnimation(false);
+      setShowTeamSummary(false);
+      
+      console.log('Auction reset:', data.message);
+    });
+
     socket.on('player:sold', (data) => {
       if (soldAnimationTimeout.current) clearTimeout(soldAnimationTimeout.current);
       setSoldInfo(data);
@@ -189,7 +244,7 @@ export default function App() {
 
             <div className="w-full bg-white rounded-3xl border border-slate-200 shadow-2xl p-5 sm:p-8">
               <img
-                src={buildImgUrl(soldInfo.player.photo, SOCKET_URL, PLACEHOLDER_IMAGE)}
+                src={getOptimizedPlayerPhoto(soldInfo.player.photo, 'card')}
                 onError={e => e.target.src = PLACEHOLDER_IMAGE}
                 alt={soldInfo.player.name}
                 className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl object-cover border-2 border-slate-100 shadow-md mx-auto mb-4"
@@ -201,7 +256,7 @@ export default function App() {
               {soldInfo.team && (
                 <div className="flex items-center justify-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 mb-4">
                   <img
-                    src={buildImgUrl(soldInfo.team.logo, SOCKET_URL, DEFAULT_TEAM_LOGO)}
+                    src={getOptimizedTeamLogo(soldInfo.team.logo, 'small')}
                     onError={e => e.target.src = DEFAULT_TEAM_LOGO}
                     alt={soldInfo.team.teamName}
                     className="w-10 h-10 rounded-full object-cover border border-slate-200 flex-shrink-0"
@@ -218,13 +273,18 @@ export default function App() {
               </div>
             </div>
           </div>
+          
+          {/* Developer Credit */}
+          <div className="fixed bottom-4 right-4 text-[10px] text-slate-400 font-medium opacity-40 z-[1001]">
+            Developed By Pankaj Narwade
+          </div>
         </div>
 
       /* ══════════════════════════════════════
           MAIN AUCTION VIEW
       ══════════════════════════════════════ */
       ) : currentPlayer ? (
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden relative">
 
           {/* Header */}
           <header className="flex-shrink-0 bg-white border-b border-slate-200 shadow-sm z-10">
@@ -250,7 +310,7 @@ export default function App() {
 
               {/* Photo */}
               <img
-                src={buildImgUrl(currentPlayer.photo, SOCKET_URL, PLACEHOLDER_IMAGE)}
+                src={getOptimizedPlayerPhoto(currentPlayer.photo, 'fullscreen')}
                 onError={e => e.target.src = PLACEHOLDER_IMAGE}
                 alt={currentPlayer.name}
                 className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 lg:w-44 lg:h-44 rounded-xl sm:rounded-2xl object-cover
@@ -324,7 +384,7 @@ export default function App() {
                                 rounded-full pl-1 sm:pl-1.5 pr-2 sm:pr-4 py-0.5 sm:py-1 shadow-sm max-w-full overflow-hidden">
                   {currentBid.team && (
                     <img
-                      src={buildImgUrl(currentBid.team.logo, SOCKET_URL, DEFAULT_TEAM_LOGO)}
+                      src={getOptimizedTeamLogo(currentBid.team.logo, 'small')}
                       onError={e => e.target.src = DEFAULT_TEAM_LOGO}
                       alt={currentBid.team.teamName}
                       className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 rounded-full object-cover border border-slate-200 flex-shrink-0"
@@ -383,8 +443,12 @@ export default function App() {
           <div className="flex items-center gap-2">
             <span className="anim-live block w-2 h-2 rounded-full bg-blue-400" />
             <span className="text-[10px] sm:text-xs font-bold tracking-widest text-slate-400 uppercase">
-              Waiting for next player
+              Developed By Pankaj Narwade Patil
             </span>
+          </div>
+          {/* Developer Credit */}
+          <div className="absolute bottom-4 right-4 text-[10px] text-slate-300 font-medium opacity-50">
+            Developed By Pankaj Narwade
           </div>
         </div>
       )}
@@ -398,7 +462,7 @@ export default function App() {
                           rounded-2xl shadow-2xl px-5 py-4 flex items-center gap-4">
             <img
               src={bidAnimationData.teamLogo
-                ? buildImgUrl(bidAnimationData.teamLogo, SOCKET_URL, DEFAULT_TEAM_LOGO)
+                ? getOptimizedTeamLogo(bidAnimationData.teamLogo, 'medium')
                 : DEFAULT_TEAM_LOGO}
               onError={e => e.target.src = DEFAULT_TEAM_LOGO}
               alt={bidAnimationData.teamName}
@@ -418,6 +482,11 @@ export default function App() {
       ══════════════════════════════════════ */}
       {showTeamSummary && (
         <div className="fixed inset-0 bg-slate-50 z-[999] flex flex-col overflow-hidden">
+
+          {/* Developer Credit */}
+          <div className="fixed bottom-3 right-4 text-[9px] sm:text-[10px] text-slate-400 font-medium opacity-40 z-[1000]">
+            Developed By Pankaj Narwade
+          </div>
 
           {/* Header */}
           <div className="flex-shrink-0 flex items-center justify-between
@@ -441,7 +510,7 @@ export default function App() {
                   {/* Team header */}
                   <div className="flex items-center gap-3 p-4 border-b border-slate-100">
                     <img
-                      src={buildImgUrl(team.logo, SOCKET_URL, DEFAULT_TEAM_LOGO)}
+                      src={getOptimizedTeamLogo(team.logo, 'small')}
                       onError={e => e.target.src = DEFAULT_TEAM_LOGO}
                       alt={team.teamName}
                       className="w-11 h-11 rounded-full object-cover border border-slate-200 flex-shrink-0"
