@@ -94,6 +94,24 @@ export default function App() {
   const [bidAnimationData, setBidAnimationData] = useState(null);
   const [showTeamSummary, setShowTeamSummary] = useState(false);
   const [teams, setTeams] = useState([]);
+  const [setIntro, setSetIntro] = useState(null);        // { set, label, basePrice, players, totalPlayers, duration }
+  const [setIntroCd, setSetIntroCd] = useState(30);     // countdown seconds
+  const setIntroCdRef = useRef(null);                   // interval handle
+  const bidSoundRef = useRef(null);
+
+  useEffect(() => {
+    const bidSound = new Audio(`${process.env.PUBLIC_URL}/assets/Bid_Sound.wav`);
+    bidSound.preload = "auto";
+    bidSound.volume = 1;
+    bidSoundRef.current = bidSound;
+
+    return () => {
+      if (bidSoundRef.current) {
+        bidSoundRef.current.pause();
+        bidSoundRef.current = null;
+      }
+    };
+  }, []);
 
   /* ── fetch teams ── */
   useEffect(() => {
@@ -138,7 +156,7 @@ export default function App() {
         });
       } else setCurrentPlayer(null);
       if (data.state.recentlySold) setRecentlySold(data.state.recentlySold);
-      setTimerValue(data.timerValue || 20);
+      setTimerValue(data.timerValue ?? 20);
     });
 
     socket.on("auction:started", (data) => {
@@ -155,6 +173,11 @@ export default function App() {
     });
 
     socket.on("bid:new", async (data) => {
+      if (bidSoundRef.current) {
+        bidSoundRef.current.currentTime = 0;
+        bidSoundRef.current.play().catch(() => {});
+      }
+
       let teamData = data.team;
       if (!teamData && data.teamId) {
         try {
@@ -206,6 +229,9 @@ export default function App() {
     socket.on("player:sold", (data) => {
       if (soldAnimationTimeout.current)
         clearTimeout(soldAnimationTimeout.current);
+      // Dismiss any active set intro when a player is sold
+      if (setIntroCdRef.current) { clearInterval(setIntroCdRef.current); setIntroCdRef.current = null; }
+      setSetIntro(null);
       setSoldInfo(data);
       setShowSoldAnimation(true);
       socket.emit("bigscreen:summaryStarting");
@@ -232,9 +258,40 @@ export default function App() {
       }
     });
 
+    socket.on("auction:ended", () => {
+      setCurrentPlayer(null);
+      setTimerValue(0);
+    });
+
+    // ── Set intro events ──────────────────────────────────────────
+    socket.on("set:intro", (data) => {
+      if (setIntroCdRef.current) clearInterval(setIntroCdRef.current);
+      setSetIntro(data);
+      const secs = Math.round((data.duration || 30000) / 1000);
+      setSetIntroCd(secs);
+      setIntroCdRef.current = setInterval(() => {
+        setSetIntroCd((prev) => {
+          if (prev <= 1) { clearInterval(setIntroCdRef.current); setIntroCdRef.current = null; return 0; }
+          return prev - 1;
+        });
+      }, 1000);
+    });
+
+    socket.on("set:started", () => {
+      if (setIntroCdRef.current) { clearInterval(setIntroCdRef.current); setIntroCdRef.current = null; }
+      setSetIntro(null);
+    });
+
+    socket.on("set:introAborted", () => {
+      if (setIntroCdRef.current) { clearInterval(setIntroCdRef.current); setIntroCdRef.current = null; }
+      setSetIntro(null);
+    });
+
     return () => {
       if (soldAnimationTimeout.current)
         clearTimeout(soldAnimationTimeout.current);
+      if (setIntroCdRef.current)
+        clearInterval(setIntroCdRef.current);
       socket.close();
     };
   }, []);
@@ -278,73 +335,197 @@ export default function App() {
 
       {isConnecting && <LoadingAnimation message="Establishing Connection…" />}
 
-      {/* ══════════════════════════════════════
-          SOLD / UNSOLD SCREEN
-      ══════════════════════════════════════ */}
-      {showSoldAnimation && soldInfo ? (
-        <div
-  className={`fixed inset-0 z-[1000] flex items-center justify-center p-4 transition-all duration-700 
-  ${soldInfo.team ? "bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700" : "bg-gradient-to-br from-slate-600 to-slate-900"}`}
->
-  <div className="anim-sold flex flex-col items-center w-full max-w-md text-center">
-    {/* Dynamic Status Header */}
-    <h1
-      className={`font-black leading-none tracking-tighter mb-4 drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]
-      text-7xl sm:text-8xl md:text-9xl lg:text-[10rem]
-      ${soldInfo.team ? "text-yellow-300 italic" : "text-slate-300"}`}
-    >
-      {soldInfo.team ? "SOLD!" : "UNSOLD"}
-    </h1>
+      {/* ════════════════════════════════════
+          SET INTRO OVERLAY (30 s)
+      ════════════════════════════════════ */}
+      {setIntro && (
+        <div className={`fixed inset-0 z-[2000] flex flex-col overflow-hidden ${
+          setIntro.set === 'A' ? 'bg-gradient-to-br from-amber-500 via-orange-600 to-red-700' :
+          setIntro.set === 'B' ? 'bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-700' :
+          setIntro.set === 'C' ? 'bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700' :
+                                 'bg-gradient-to-br from-slate-600 via-slate-700 to-slate-900'
+        }`}>
 
-    {/* Main Card - Glass Effect */}
-    <div className="w-full bg-white/95 backdrop-blur-md rounded-[2.5rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] border-b-8 border-slate-200 p-6 sm:p-10">
-      
-      {/* Player Photo with Glow */}
-      <div className="relative inline-block mb-6">
-        <div className={`absolute inset-0 blur-2xl opacity-30 rounded-full ${soldInfo.team ? "bg-emerald-500" : "bg-slate-400"}`}></div>
-        <img
-          src={getOptimizedPlayerPhoto(soldInfo.player.photo)}
-          onError={(e) => (e.target.src = PLACEHOLDER_IMAGE)}
-          alt={soldInfo.player.name}
-          className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-3xl object-cover border-4 border-white shadow-2xl mx-auto z-10"
-        />
-      </div>
+          {/* Top bar */}
+          <div className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-3 bg-black/20 backdrop-blur-sm">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="text-white/50 text-xs font-bold uppercase tracking-widest hidden sm:block">Auto Auction</span>
+              <span className="text-white/30 hidden sm:block">•</span>
+              <span className="text-white/70 text-xs sm:text-sm font-bold uppercase tracking-wide">Up Next</span>
+            </div>
+            <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-full px-3 sm:px-4 py-1.5 sm:py-2 border border-white/20">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+              <span className="text-white font-bold text-xs sm:text-sm">Starts in {setIntroCd}s</span>
+            </div>
+          </div>
 
-      <h2 className="text-3xl sm:text-4xl font-black text-slate-800 mb-6 tracking-tight leading-tight">
-        {soldInfo.player.name}
-      </h2>
+          {/* Body */}
+          <div className="flex-1 overflow-hidden flex flex-col lg:flex-row gap-3 sm:gap-4 p-3 sm:p-4 md:p-5 min-h-0">
 
-      {soldInfo.team && (
-        <div className="flex items-center justify-center gap-4 bg-blue-50/80 border-2 border-blue-100 rounded-2xl px-5 py-4 mb-6 shadow-inner">
-          <img
-            src={getOptimizedTeamLogo(soldInfo.team.logo)}
-            onError={(e) => (e.target.src = DEFAULT_TEAM_LOGO)}
-            alt={soldInfo.team.teamName}
-            className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md flex-shrink-0"
-          />
-          <div className="text-left leading-none">
-            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Purchased By</p>
-            <span className="text-xl sm:text-2xl font-black text-blue-800 truncate block max-w-[150px] sm:max-w-[200px]">
-              {soldInfo.team.teamName}
-            </span>
+            {/* Left —— set identity */}
+            <div className="flex-shrink-0 flex flex-col items-center justify-center lg:w-56 xl:w-72 gap-4">
+              <div className="w-full bg-white/10 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-6 text-center border border-white/20 shadow-2xl">
+                <p className="text-white/50 text-[10px] sm:text-xs font-bold uppercase tracking-widest mb-1">Now Entering</p>
+                <div className={`text-7xl sm:text-8xl lg:text-9xl font-black text-white leading-none drop-shadow-lg
+                  ${ setIntro.set === 'A' ? 'text-yellow-200' : setIntro.set === 'B' ? 'text-sky-200' : setIntro.set === 'C' ? 'text-emerald-200' : 'text-slate-200' }`}>
+                  {setIntro.set}
+                </div>
+                <p className="text-xl sm:text-2xl lg:text-3xl font-black text-white/90 mt-1">{setIntro.label}</p>
+                <div className="mt-3 sm:mt-4 bg-white/15 rounded-xl sm:rounded-2xl px-4 py-2.5 sm:py-3">
+                  <p className="text-white/60 text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-0.5">Base Price</p>
+                  <p className="text-2xl sm:text-3xl lg:text-4xl font-black text-white">₹{setIntro.basePrice}L</p>
+                </div>
+                <p className="mt-3 text-white/70 text-xs sm:text-sm">
+                  <span className="font-black text-white text-base sm:text-lg">{setIntro.totalPlayers}</span> Players
+                </p>
+              </div>
+
+              {/* Countdown ring */}
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="8" />
+                    <circle
+                      cx="50" cy="50" r="44" fill="none"
+                      stroke="rgba(255,255,255,0.7)" strokeWidth="8"
+                      strokeDasharray={`${2 * Math.PI * 44}`}
+                      strokeDashoffset={`${2 * Math.PI * 44 * (1 - setIntroCd / 30)}`}
+                      strokeLinecap="round"
+                      style={{ transition: 'stroke-dashoffset 1s linear' }}
+                    />
+                  </svg>
+                  <span className="absolute inset-0 flex items-center justify-center text-2xl sm:text-3xl font-black text-white">{setIntroCd}</span>
+                </div>
+                <p className="text-white/50 text-[10px] font-bold uppercase tracking-widest">Seconds</p>
+              </div>
+            </div>
+
+            {/* Right —— player grid */}
+            <div className="flex-1 overflow-y-auto thin-sb min-h-0">
+              <p className="text-white/60 text-xs font-bold uppercase tracking-wider mb-2 sm:mb-3">Players in this set</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2 sm:gap-3">
+                {setIntro.players.map((player) => (
+                  <div
+                    key={player._id}
+                    className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-2.5 sm:p-3 border border-white/20 flex flex-col items-center gap-1.5 sm:gap-2 hover:bg-white/20 transition-colors"
+                  >
+                    <img
+                      src={getOptimizedPlayerPhoto(player.photo)}
+                      alt={player.name}
+                      onError={(e) => { e.target.onerror = null; e.target.src = PLACEHOLDER_IMAGE; }}
+                      className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg sm:rounded-xl object-cover border-2 border-white/30 shadow-lg flex-shrink-0"
+                    />
+                    <div className="text-center w-full">
+                      <p className="text-white font-bold text-[11px] sm:text-xs leading-tight line-clamp-2">{player.name}</p>
+                      <p className="text-white/55 text-[9px] sm:text-[10px] mt-0.5">{player.category}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Progress bar at bottom */}
+          <div className="flex-shrink-0 h-1.5 bg-black/20">
+            <div
+              className="h-full bg-white/60"
+              style={{ width: `${(setIntroCd / 30) * 100}%`, transition: 'width 1s linear' }}
+            />
           </div>
         </div>
       )}
 
-      {/* Price Tag */}
-      <div className={`inline-flex items-center justify-center gap-2 rounded-2xl px-10 py-4 shadow-xl transform -rotate-1
-        ${soldInfo.team ? "bg-emerald-600 text-white shadow-emerald-200" : "bg-slate-800 text-white shadow-slate-400"}`}>
-        <span className="text-4xl sm:text-5xl font-black tabular-nums">
-          ₹{soldInfo.amount}
-        </span>
-        <span className="text-sm font-bold opacity-80 uppercase mt-2 tracking-tighter">Points</span>
+      {/* ══════════════════════════════════════
+          SOLD / UNSOLD SCREEN
+      ══════════════════════════════════════ */}
+      {showSoldAnimation && soldInfo ? (
+       <div
+  className="fixed inset-0 z-[1000] flex items-center justify-center p-6 sm:p-10 lg:p-16 backdrop-blur-xl bg-slate-950/60 transition-all duration-1000"
+>
+  {/* The Main Container: Handles responsive sizing and centering */}
+  <div className="relative w-full max-w-lg flex flex-col items-center animate-in fade-in zoom-in duration-500">
+    
+    {/* Floating Header: High Contrast for visual impact */}
+    <div className="relative z-20 -mb-6 sm:-mb-10 transform -rotate-1">
+      <h1
+        className={`font-black uppercase tracking-tighter drop-shadow-[0_20px_20px_rgba(0,0,0,0.5)]
+        text-7xl sm:text-8xl md:text-9xl
+        ${soldInfo.team 
+          ? "text-transparent bg-clip-text bg-gradient-to-b from-yellow-100 via-yellow-400 to-amber-600 italic" 
+          : "text-slate-400 opacity-90"}`}
+      >
+        {soldInfo.team ? "SOLD!" : "UNSOLD"}
+      </h1>
+    </div>
+
+    {/* The Card: Centered with internal spacing */}
+    <div className={`w-full rounded-[3rem] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.7)] border-t border-white/20 p-8 sm:p-12 text-center
+      ${soldInfo.team 
+        ? "bg-gradient-to-br from-emerald-900/90 via-teal-950/95 to-slate-950/95" 
+        : "bg-gradient-to-br from-slate-800/90 to-slate-950/95"}`}
+    >
+      
+      {/* Player Profile Image */}
+      <div className="relative inline-block mb-8">
+        <div className={`absolute inset-0 blur-3xl opacity-40 rounded-full animate-pulse
+          ${soldInfo.team ? "bg-yellow-400" : "bg-slate-400"}`}></div>
+        <img
+          src={getOptimizedPlayerPhoto(soldInfo.player.photo)}
+          onError={(e) => (e.target.src = PLACEHOLDER_IMAGE)}
+          alt={soldInfo.player.name}
+          className="relative w-36 h-36 sm:w-48 sm:h-48 rounded-[2.5rem] object-cover border-4 border-white/10 shadow-2xl z-10"
+        />
+      </div>
+
+      {/* Name and Meta */}
+      <div className="mb-8">
+        <h2 className="text-3xl sm:text-5xl font-black text-white mb-2 tracking-tight">
+          {soldInfo.player.name}
+        </h2>
+        <div className="h-1 w-12 bg-yellow-500 mx-auto rounded-full opacity-60"></div>
+      </div>
+
+      {/* Team Info Section */}
+      {soldInfo.team && (
+        <div className="flex items-center justify-between gap-4 bg-white/5 border border-white/10 rounded-3xl p-5 mb-8 text-left">
+          <div className="flex flex-col">
+            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-[0.2em] mb-1">Purchased By</p>
+            <span className="text-xl sm:text-2xl font-black text-white truncate max-w-[140px] sm:max-w-[200px]">
+              {soldInfo.team.teamName}
+            </span>
+          </div>
+          <img
+            src={getOptimizedTeamLogo(soldInfo.team.logo)}
+            onError={(e) => (e.target.src = DEFAULT_TEAM_LOGO)}
+            alt={soldInfo.team.teamName}
+            className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-contain bg-white/10 p-2 border border-white/10 shadow-lg"
+          />
+        </div>
+      )}
+
+      {/* Price Badge */}
+      <div className={`inline-flex flex-col items-center justify-center rounded-2xl px-12 py-5 shadow-2xl
+        ${soldInfo.team 
+          ? "bg-white text-slate-900 shadow-emerald-500/20" 
+          : "bg-slate-700 text-slate-300 shadow-black"}`}>
+        <div className="flex items-baseline gap-1">
+           <span className="text-xl font-bold">₹</span>
+           <span className="text-5xl sm:text-6xl font-black tabular-nums tracking-tighter">
+             {soldInfo.amount.toLocaleString('en-IN')}
+           </span>
+        </div>
+        <span className="text-[10px] font-bold uppercase tracking-[0.3em] mt-1 opacity-60">Points</span>
       </div>
     </div>
-  </div>
 
-  {/* Developer Credit */}
-  <div className="fixed bottom-6 right-6 bg-black/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-[10px] text-white/80 font-bold uppercase tracking-widest z-[1001]">
-    Dev: Pankaj Narwade
+    {/* Branding Footnote */}
+    <div className="mt-8 flex items-center gap-3 opacity-40">
+       <span className="h-px w-8 bg-white"></span>
+       <p className="text-[10px] text-white font-bold uppercase tracking-widest">
+         Dev: Pankaj Narwade
+       </p>
+       <span className="h-px w-8 bg-white"></span>
+    </div>
   </div>
 </div>
       ) : /* ══════════════════════════════════════
@@ -381,7 +562,7 @@ export default function App() {
                 src={getOptimizedPlayerPhoto(currentPlayer.photo)}
                 onError={(e) => (e.target.src = PLACEHOLDER_IMAGE)}
                 alt={currentPlayer.name}
-                className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 lg:w-44 lg:h-44 rounded-xl sm:rounded-2xl object-cover
+                className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 lg:size-[20rem] rounded-xl sm:rounded-2xl object-cover
                            border-2 border-slate-100 shadow-lg mb-2 sm:mb-3 md:mb-4 flex-shrink-0"
               />
 
@@ -557,84 +738,91 @@ export default function App() {
       BID NOTIFICATION TOAST (CENTERED & RESPONSIVE)
     ══════════════════════════════════════ */}
       {showBidAnimation && bidAnimationData && (
-        <div className="fixed inset-0 flex items-center justify-center p-6 z-[9999] pointer-events-none">
-          <div
-            className="anim-bid w-full max-w-sm md:max-w-xl 
-                 bg-slate-900/90 backdrop-blur-xl border border-white/20
-                 rounded-[2rem] md:rounded-[3rem] shadow-[0_0_50px_rgba(37,99,235,0.3)] 
-                 px-6 py-5 md:px-10 md:py-8 flex items-center gap-6 md:gap-10
-                 relative overflow-hidden"
-          >
-            {/* Background Animated Glow */}
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent animate-shimmer" />
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm bg-black/20 pointer-events-none">
+  <div
+    className="anim-bid w-full max-w-sm md:max-w-2xl 
+               bg-slate-900/95 backdrop-blur-2xl border border-white/10
+               rounded-[2.5rem] md:rounded-[4rem] shadow-[0_0_80px_rgba(37,99,235,0.25)] 
+               p-5 md:p-10 flex items-center gap-5 md:gap-10
+               relative overflow-hidden pointer-events-auto"
+  >
+    {/* Background Animated Glow Line */}
+    <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-blue-400 to-transparent animate-shimmer" />
 
-            {/* Team Logo with Pulse */}
-            <div className="relative flex-shrink-0">
-              <div className="absolute inset-0 bg-blue-500 rounded-full blur-md animate-ping opacity-20" />
-              <img
-                src={
-                  bidAnimationData.teamLogo
-                    ? getOptimizedTeamLogo(bidAnimationData.teamLogo)
-                    : DEFAULT_TEAM_LOGO
-                }
-                onError={(e) => (e.target.src = DEFAULT_TEAM_LOGO)}
-                alt={bidAnimationData.teamName}
-                className="w-16 h-16 md:w-28 md:h-28 rounded-full object-cover 
-                     border-4 border-white/10 shadow-xl relative z-10"
-              />
-            </div>
+    {/* Team Logo Section */}
+    <div className="relative flex-shrink-0">
+      {/* Pulse Aura */}
+      <div className="absolute inset-0 bg-blue-500 rounded-full blur-xl animate-ping opacity-30" />
+      
+      <div className="relative z-10 p-1 bg-gradient-to-br from-white/20 to-transparent rounded-full">
+        <img
+          src={
+            bidAnimationData.teamLogo
+              ? getOptimizedTeamLogo(bidAnimationData.teamLogo)
+              : DEFAULT_TEAM_LOGO
+          }
+          onError={(e) => (e.target.src = DEFAULT_TEAM_LOGO)}
+          alt={bidAnimationData.teamName}
+          className="w-20 h-20 md:w-36 md:h-36 rounded-full object-cover border-2 border-white/20 shadow-2xl"
+        />
+      </div>
+    </div>
 
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                </span>
-                <p className="text-[10px] md:text-sm font-black tracking-[0.3em] text-blue-400 uppercase">
-                  New Lead Bid
-                </p>
-              </div>
+    {/* Bid Details Section */}
+    <div className="min-w-0 flex-1 flex flex-col justify-center">
+      {/* Live Badge */}
+      <div className="flex items-center gap-2 mb-2">
+        <span className="relative flex h-2 w-2 md:h-3 md:w-3">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 md:h-3 md:w-3 bg-red-500"></span>
+        </span>
+        <p className="text-[10px] md:text-xs font-black tracking-[0.2em] text-blue-400 uppercase">
+          Current High Bidder
+        </p>
+      </div>
 
-              <p className="text-xl md:text-4xl font-black text-white truncate leading-tight uppercase italic tracking-tight">
-                {bidAnimationData.teamName}
-              </p>
+      {/* Team Name */}
+      <h2 className="text-2xl md:text-5xl font-black text-white truncate leading-tight uppercase italic tracking-tighter mb-1">
+        {bidAnimationData.teamName}
+      </h2>
 
-              <div className="flex items-baseline gap-1 md:gap-2 mt-1">
-                <span className="text-xl md:text-3xl font-bold text-blue-500">
-                  ₹
-                </span>
-                <p className="text-4xl md:text-7xl font-black text-white leading-none tracking-tighter animate-pulse">
-                  {bidAnimationData.amount}
-                </p>
-              </div>
-            </div>
+      {/* Amount Display */}
+      <div className="flex items-baseline gap-1 md:gap-3">
+        <span className="text-xl md:text-4xl font-bold text-blue-500 italic">
+          ₹
+        </span>
+        <p className="text-4xl md:text-8xl font-black text-white leading-none tracking-tighter tabular-nums drop-shadow-lg">
+          {bidAnimationData.amount.toLocaleString('en-IN')}
+        </p>
+      </div>
+    </div>
 
-            {/* Aesthetic "Tech" Accents */}
-            <div className="hidden md:block absolute right-6 top-1/2 -translate-y-1/2 rotate-90 opacity-20">
-              <p className="text-[10px] font-black tracking-[1em] text-white">
-                AUCTION
-              </p>
-            </div>
-          </div>
+    {/* Vertical Decorative Text (Hidden on small mobile) */} 
+<div className="hidden lg:flex absolute right-0 top-0 bottom-0 w-12 items-center justify-center border-l border-white/5 bg-white/[0.02]">
+  <p className="text-[10px] font-black tracking-[1rem] text-white/20 uppercase whitespace-nowrap rotate-90 origin-center translate-x-1">
+    AUCTION
+  </p>
+</div>
 
-          {/* Custom Animations */}
-          <style>{`
+    {/* Custom Animations Inline */}
+    <style jsx>{`
       @keyframes shimmer {
         0% { transform: translateX(-100%); }
         100% { transform: translateX(100%); }
       }
       .animate-shimmer {
-        animation: shimmer 1.5s infinite;
+        animation: shimmer 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
       }
       .anim-bid {
-        animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        animation: popAndFloat 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
-      @keyframes popIn {
-        0% { opacity: 0; transform: scale(0.8) translateY(20px); }
+      @keyframes popAndFloat {
+        0% { opacity: 0; transform: scale(0.9) translateY(40px); }
         100% { opacity: 1; transform: scale(1) translateY(0); }
       }
     `}</style>
-        </div>
+  </div>
+</div>
       )}
 
       {/* ══════════════════════════════════════
@@ -668,7 +856,7 @@ export default function App() {
 
           {/* Teams grid */}
           <div className="no-sb flex-1 overflow-y-auto p-3 sm:p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4">
               {Array.isArray(teams) &&
                 teams.map((team) => (
                   <div
