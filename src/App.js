@@ -310,6 +310,32 @@ export default function App() {
         ? "text-amber-600"
         : "text-red-600";
 
+  const setIntroKey = setIntro?.set?.toUpperCase();
+  const setIntroThemes = {
+    APP: {
+      bg: "bg-gradient-to-br from-fuchsia-600 via-purple-700 to-violet-900",
+      text: "text-fuchsia-200",
+    },
+    A: {
+      bg: "bg-gradient-to-br from-amber-500 via-orange-600 to-red-700",
+      text: "text-yellow-200",
+    },
+    B: {
+      bg: "bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-700",
+      text: "text-sky-200",
+    },
+    C: {
+      bg: "bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700",
+      text: "text-emerald-200",
+    },
+    DEFAULT: {
+      bg: "bg-gradient-to-br from-slate-600 via-slate-700 to-slate-900",
+      text: "text-slate-200",
+    },
+  };
+  const setIntroDisplaySet = setIntroKey === "APP" ? "A++" : setIntro?.set;
+  const setIntroTheme = setIntroThemes[setIntroKey] || setIntroThemes.DEFAULT;
+
   return (
     <div className="h-screen min-h-screen overflow-hidden flex flex-col bg-slate-50 text-slate-900">
       {/* Animation keyframes — only motion, no layout/colour */}
@@ -339,12 +365,7 @@ export default function App() {
           SET INTRO OVERLAY (30 s)
       ════════════════════════════════════ */}
       {setIntro && (
-        <div className={`fixed inset-0 z-[2000] flex flex-col overflow-hidden ${
-          setIntro.set === 'A' ? 'bg-gradient-to-br from-amber-500 via-orange-600 to-red-700' :
-          setIntro.set === 'B' ? 'bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-700' :
-          setIntro.set === 'C' ? 'bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700' :
-                                 'bg-gradient-to-br from-slate-600 via-slate-700 to-slate-900'
-        }`}>
+        <div className={`fixed inset-0 z-[2000] flex flex-col overflow-hidden ${setIntroTheme.bg}`}>
 
           {/* Top bar */}
           <div className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-3 bg-black/20 backdrop-blur-sm">
@@ -366,9 +387,8 @@ export default function App() {
             <div className="flex-shrink-0 flex flex-col items-center justify-center lg:w-56 xl:w-72 gap-4">
               <div className="w-full bg-white/10 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-6 text-center border border-white/20 shadow-2xl">
                 <p className="text-white/50 text-[10px] sm:text-xs font-bold uppercase tracking-widest mb-1">Now Entering</p>
-                <div className={`text-7xl sm:text-8xl lg:text-9xl font-black text-white leading-none drop-shadow-lg
-                  ${ setIntro.set === 'A' ? 'text-yellow-200' : setIntro.set === 'B' ? 'text-sky-200' : setIntro.set === 'C' ? 'text-emerald-200' : 'text-slate-200' }`}>
-                  {setIntro.set}
+                <div className={`text-7xl sm:text-8xl lg:text-9xl font-black text-white leading-none drop-shadow-lg ${setIntroTheme.text}`}>
+                  {setIntroDisplaySet}
                 </div>
                 <p className="text-xl sm:text-2xl lg:text-3xl font-black text-white/90 mt-1">{setIntro.label}</p>
                 <div className="mt-3 sm:mt-4 bg-white/15 rounded-xl sm:rounded-2xl px-4 py-2.5 sm:py-3">
