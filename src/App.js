@@ -98,6 +98,11 @@ export default function App() {
   const [setIntroCd, setSetIntroCd] = useState(30);     // countdown seconds
   const setIntroCdRef = useRef(null);                   // interval handle
   const bidSoundRef = useRef(null);
+  const soldThemeRef = useRef(null);
+  const countdownFiveSecRef = useRef(null);
+  const lastTimerValueRef = useRef(20);
+  const lastFiveCueActiveRef = useRef(false);
+  const lastSoldTriggerRef = useRef({ key: null, time: 0 });
 
   useEffect(() => {
     const bidSound = new Audio(`${process.env.PUBLIC_URL}/assets/Bid_Sound.wav`);
@@ -109,6 +114,34 @@ export default function App() {
       if (bidSoundRef.current) {
         bidSoundRef.current.pause();
         bidSoundRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const soldTheme = new Audio(`${process.env.PUBLIC_URL}/assets/ipl_theme.mp3`);
+    soldTheme.preload = "auto";
+    soldTheme.volume = 0.9;
+    soldThemeRef.current = soldTheme;
+
+    return () => {
+      if (soldThemeRef.current) {
+        soldThemeRef.current.pause();
+        soldThemeRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const fiveSecondsCue = new Audio(`${process.env.PUBLIC_URL}/assets/5-seconds.mp3`);
+    fiveSecondsCue.preload = "auto";
+    fiveSecondsCue.volume = 1;
+    countdownFiveSecRef.current = fiveSecondsCue;
+
+    return () => {
+      if (countdownFiveSecRef.current) {
+        countdownFiveSecRef.current.pause();
+        countdownFiveSecRef.current = null;
       }
     };
   }, []);
@@ -134,6 +167,34 @@ export default function App() {
 
   /* ── socket ── */
   useEffect(() => {
+    const resetLastFiveCountdownCue = () => {
+      if (countdownFiveSecRef.current) {
+        countdownFiveSecRef.current.pause();
+        countdownFiveSecRef.current.currentTime = 0;
+      }
+      lastFiveCueActiveRef.current = false;
+    };
+
+    const updateTimerWithCue = (nextValue) => {
+      const safeNext = Number.isFinite(nextValue) ? nextValue : 0;
+      const prev = lastTimerValueRef.current;
+
+      setTimerValue(safeNext);
+
+      const enteredLastFive = prev > 5 && safeNext <= 5 && safeNext > 0;
+      const leftLastFive = safeNext > 5 || safeNext <= 0;
+
+      if (enteredLastFive && countdownFiveSecRef.current) {
+        countdownFiveSecRef.current.currentTime = 0;
+        countdownFiveSecRef.current.play().catch(() => {});
+        lastFiveCueActiveRef.current = true;
+      } else if (leftLastFive && lastFiveCueActiveRef.current) {
+        resetLastFiveCountdownCue();
+      }
+
+      lastTimerValueRef.current = safeNext;
+    };
+
     const socket = io(SOCKET_URL, {
       reconnection: true,
       reconnectionDelay: 1000,
@@ -156,7 +217,7 @@ export default function App() {
         });
       } else setCurrentPlayer(null);
       if (data.state.recentlySold) setRecentlySold(data.state.recentlySold);
-      setTimerValue(data.timerValue ?? 20);
+      updateTimerWithCue(data.timerValue ?? 20);
     });
 
     socket.on("auction:started", (data) => {
@@ -169,10 +230,18 @@ export default function App() {
         teamName: "Base Price",
         team: null,
       });
-      setTimerValue(data.timerValue);
+      updateTimerWithCue(data.timerValue ?? 20);
     });
 
     socket.on("bid:new", async (data) => {
+      if (
+        lastFiveCueActiveRef.current &&
+        lastTimerValueRef.current <= 5 &&
+        lastTimerValueRef.current > 0
+      ) {
+        resetLastFiveCountdownCue();
+      }
+
       if (bidSoundRef.current) {
         bidSoundRef.current.currentTime = 0;
         bidSoundRef.current.play().catch(() => {});
@@ -210,8 +279,8 @@ export default function App() {
       }
     });
 
-    socket.on("timer:update", (d) => setTimerValue(d.value));
-    socket.on("timer:reset", (d) => setTimerValue(d.value));
+    socket.on("timer:update", (d) => updateTimerWithCue(d.value));
+    socket.on("timer:reset", (d) => updateTimerWithCue(d.value));
     socket.on("teams:status", (d) => {
       if (d.teams && Array.isArray(d.teams)) setTeams(d.teams);
     });
@@ -219,14 +288,31 @@ export default function App() {
     socket.on("auction:reset", (data) => {
       // Reset auction state
       setCurrentPlayer(null);
-      setTimerValue(0);
+      updateTimerWithCue(0);
       setShowSoldAnimation(false);
       setShowTeamSummary(false);
+      lastSoldTriggerRef.current = { key: null, time: 0 };
 
       console.log("Auction reset:", data.message);
     });
 
     socket.on("player:sold", (data) => {
+      const soldEventKey = [
+        data?.player?._id || data?.player?.id || data?.player?.name || "unknown-player",
+        data?.team?._id || data?.team?.id || "UNSOLD",
+        data?.amount ?? "unknown-amount",
+      ].join("|");
+      const now = Date.now();
+
+      // Ignore duplicate sold packets that can arrive from reconnect/replay.
+      if (
+        lastSoldTriggerRef.current.key === soldEventKey &&
+        now - lastSoldTriggerRef.current.time < 8000
+      ) {
+        return;
+      }
+      lastSoldTriggerRef.current = { key: soldEventKey, time: now };
+
       if (soldAnimationTimeout.current)
         clearTimeout(soldAnimationTimeout.current);
       // Dismiss any active set intro when a player is sold
@@ -234,6 +320,12 @@ export default function App() {
       setSetIntro(null);
       setSoldInfo(data);
       setShowSoldAnimation(true);
+
+      if (data.team && soldThemeRef.current) {
+        soldThemeRef.current.currentTime = 0;
+        soldThemeRef.current.play().catch(() => {});
+      }
+
       socket.emit("bigscreen:summaryStarting");
       const t = setTimeout(() => {
         setShowSoldAnimation(false);
@@ -260,7 +352,7 @@ export default function App() {
 
     socket.on("auction:ended", () => {
       setCurrentPlayer(null);
-      setTimerValue(0);
+      updateTimerWithCue(0);
     });
 
     // ── Set intro events ──────────────────────────────────────────
@@ -292,6 +384,7 @@ export default function App() {
         clearTimeout(soldAnimationTimeout.current);
       if (setIntroCdRef.current)
         clearInterval(setIntroCdRef.current);
+      resetLastFiveCountdownCue();
       socket.close();
     };
   }, []);
