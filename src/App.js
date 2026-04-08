@@ -63,7 +63,7 @@ const getOptimizedTeamLogo = (logoUrl) => {
   return buildImgUrl(logoUrl, BASE_URL, DEFAULT_TEAM_LOGO);
 };
 
-const playAudioFromStart = (audioRef) => {
+const playAudioFromStart = (audioRef, onBlocked) => {
   const audio = audioRef?.current;
   if (!audio) return;
 
@@ -73,15 +73,24 @@ const playAudioFromStart = (audioRef) => {
     const playPromise = audio.play();
 
     if (playPromise && typeof playPromise.catch === "function") {
-      playPromise.catch(() => {
-        // Some browsers need a reload after rapid replays/interrupted playback.
+      playPromise.catch((error) => {
+        if (error?.name === "NotAllowedError") {
+          onBlocked?.();
+          return;
+        }
+
+        // Rapid retriggers can interrupt playback in some browsers.
         audio.load();
         audio.currentTime = 0;
-        audio.play().catch(() => {});
+        audio.play().catch((retryError) => {
+          if (retryError?.name === "NotAllowedError") {
+            onBlocked?.();
+          }
+        });
       });
     }
   } catch {
-    // No-op: audio playback should never break auction UI flow.
+    // Audio failures should not break the auction screen.
   }
 };
 
@@ -125,6 +134,34 @@ export default function App() {
   const lastTimerValueRef = useRef(20);
   const lastFiveCueActiveRef = useRef(false);
   const lastSoldTriggerRef = useRef({ key: null, time: 0 });
+
+  const unlockAudioPlayback = () => {
+    const audioRefs = [bidSoundRef, soldThemeRef, countdownFiveSecRef];
+
+    audioRefs.forEach((ref) => {
+      const audio = ref.current;
+      if (!audio) return;
+
+      const wasMuted = audio.muted;
+      audio.muted = true;
+      audio.currentTime = 0;
+
+      const p = audio.play();
+      if (p && typeof p.then === "function") {
+        p
+          .then(() => {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.muted = wasMuted;
+          })
+          .catch(() => {
+            audio.muted = wasMuted;
+          });
+      } else {
+        audio.muted = wasMuted;
+      }
+    });
+  };
 
   useEffect(() => {
     const bidSound = new Audio(`${process.env.PUBLIC_URL}/assets/Bid_Sound.wav`);
@@ -171,6 +208,20 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const handleUserUnlock = () => {
+      unlockAudioPlayback();
+    };
+
+    window.addEventListener("pointerdown", handleUserUnlock, { once: true });
+    window.addEventListener("keydown", handleUserUnlock, { once: true });
+
+    return () => {
+      window.removeEventListener("pointerdown", handleUserUnlock);
+      window.removeEventListener("keydown", handleUserUnlock);
+    };
+  }, []);
+
   /* ── fetch teams ── */
   useEffect(() => {
     const fetchTeams = async () => {
@@ -202,14 +253,14 @@ export default function App() {
 
     const updateTimerWithCue = (nextValue) => {
       const safeNext = Number.isFinite(nextValue) ? nextValue : 0;
+      const prev = lastTimerValueRef.current;
 
       setTimerValue(safeNext);
 
-      const enteredLastFive =
-        safeNext <= 5 && safeNext > 0 && !lastFiveCueActiveRef.current;
+      const enteredLastFive = prev > 5 && safeNext <= 5 && safeNext > 0;
       const leftLastFive = safeNext > 5 || safeNext <= 0;
 
-      if (enteredLastFive) {
+      if (enteredLastFive && countdownFiveSecRef.current) {
         playAudioFromStart(countdownFiveSecRef);
         lastFiveCueActiveRef.current = true;
       } else if (leftLastFive && lastFiveCueActiveRef.current) {
@@ -247,6 +298,10 @@ export default function App() {
     socket.on("auction:started", (data) => {
       if (soldAnimationTimeout.current)
         clearTimeout(soldAnimationTimeout.current);
+      if (soldThemeRef.current) {
+        soldThemeRef.current.pause();
+        soldThemeRef.current.currentTime = 0;
+      }
       setShowSoldAnimation(false);
       setCurrentPlayer(data.player);
       setCurrentBid({
@@ -344,7 +399,9 @@ export default function App() {
       setSoldInfo(data);
       setShowSoldAnimation(true);
 
-      playAudioFromStart(soldThemeRef);
+      if (soldThemeRef.current) {
+        playAudioFromStart(soldThemeRef);
+      }
 
       socket.emit("bigscreen:summaryStarting");
       const t = setTimeout(() => {
