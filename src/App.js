@@ -63,6 +63,28 @@ const getOptimizedTeamLogo = (logoUrl) => {
   return buildImgUrl(logoUrl, BASE_URL, DEFAULT_TEAM_LOGO);
 };
 
+const playAudioFromStart = (audioRef) => {
+  const audio = audioRef?.current;
+  if (!audio) return;
+
+  try {
+    audio.pause();
+    audio.currentTime = 0;
+    const playPromise = audio.play();
+
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch(() => {
+        // Some browsers need a reload after rapid replays/interrupted playback.
+        audio.load();
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+      });
+    }
+  } catch {
+    // No-op: audio playback should never break auction UI flow.
+  }
+};
+
 // Only return stats that have a real, non-zero value
 const getVisibleStats = (stats) => {
   if (!stats) return [];
@@ -108,6 +130,7 @@ export default function App() {
     const bidSound = new Audio(`${process.env.PUBLIC_URL}/assets/Bid_Sound.wav`);
     bidSound.preload = "auto";
     bidSound.volume = 1;
+    bidSound.load();
     bidSoundRef.current = bidSound;
 
     return () => {
@@ -122,6 +145,7 @@ export default function App() {
     const soldTheme = new Audio(`${process.env.PUBLIC_URL}/assets/ipl_theme.mp3`);
     soldTheme.preload = "auto";
     soldTheme.volume = 0.9;
+    soldTheme.load();
     soldThemeRef.current = soldTheme;
 
     return () => {
@@ -136,6 +160,7 @@ export default function App() {
     const fiveSecondsCue = new Audio(`${process.env.PUBLIC_URL}/assets/5-seconds.mp3`);
     fiveSecondsCue.preload = "auto";
     fiveSecondsCue.volume = 1;
+    fiveSecondsCue.load();
     countdownFiveSecRef.current = fiveSecondsCue;
 
     return () => {
@@ -177,16 +202,15 @@ export default function App() {
 
     const updateTimerWithCue = (nextValue) => {
       const safeNext = Number.isFinite(nextValue) ? nextValue : 0;
-      const prev = lastTimerValueRef.current;
 
       setTimerValue(safeNext);
 
-      const enteredLastFive = prev > 5 && safeNext <= 5 && safeNext > 0;
+      const enteredLastFive =
+        safeNext <= 5 && safeNext > 0 && !lastFiveCueActiveRef.current;
       const leftLastFive = safeNext > 5 || safeNext <= 0;
 
-      if (enteredLastFive && countdownFiveSecRef.current) {
-        countdownFiveSecRef.current.currentTime = 0;
-        countdownFiveSecRef.current.play().catch(() => {});
+      if (enteredLastFive) {
+        playAudioFromStart(countdownFiveSecRef);
         lastFiveCueActiveRef.current = true;
       } else if (leftLastFive && lastFiveCueActiveRef.current) {
         resetLastFiveCountdownCue();
@@ -243,8 +267,7 @@ export default function App() {
       }
 
       if (bidSoundRef.current) {
-        bidSoundRef.current.currentTime = 0;
-        bidSoundRef.current.play().catch(() => {});
+        playAudioFromStart(bidSoundRef);
       }
 
       let teamData = data.team;
@@ -321,10 +344,7 @@ export default function App() {
       setSoldInfo(data);
       setShowSoldAnimation(true);
 
-      if (data.team && soldThemeRef.current) {
-        soldThemeRef.current.currentTime = 0;
-        soldThemeRef.current.play().catch(() => {});
-      }
+      playAudioFromStart(soldThemeRef);
 
       socket.emit("bigscreen:summaryStarting");
       const t = setTimeout(() => {
